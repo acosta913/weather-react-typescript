@@ -1,17 +1,29 @@
 import axios from "axios";
-import type { SearchType, Weather } from "../types";
+import type { SearchType } from "../types";
+import { z } from "zod";
 
 // TYPE GUARD o ASSERTION
-function isWeatherReponse(weather: unknown): weather is Weather {
-  return (
-    Boolean(weather) &&
-    typeof weather === "object" &&
-    typeof (weather as Weather).name === "string" &&
-    typeof (weather as Weather).main.temp === "number" &&
-    typeof (weather as Weather).main.temp_max === "number" &&
-    typeof (weather as Weather).main.temp_min === "number"
-  );
-}
+// function isWeatherReponse(weather: unknown): weather is Weather {
+//   return (
+//     Boolean(weather) &&
+//     typeof weather === "object" &&
+//     typeof (weather as Weather).name === "string" &&
+//     typeof (weather as Weather).main.temp === "number" &&
+//     typeof (weather as Weather).main.temp_max === "number" &&
+//     typeof (weather as Weather).main.temp_min === "number"
+//   );
+// }
+
+// Zod
+const Weather = z.object({
+  name: z.string(),
+  main: z.object({
+    temp: z.number(),
+    temp_max: z.number(),
+    temp_min: z.number(),
+  }),
+});
+type Weather = z.infer<typeof Weather>;
 
 export default function useWeather() {
   const fetchWeather = async (search: SearchType) => {
@@ -27,9 +39,18 @@ export default function useWeather() {
 
       const weatherUrl = `${apiUrl}data/2.5/weather?lat=${lat}&lon=${lon}&appid=${appId}`;
       const { data: weatherResult } = await axios(weatherUrl);
-      const result = isWeatherReponse(weatherResult);
-      if (result) {
-        console.log(weatherResult);
+      // TYPE GUARD o ASSERTION
+      //   const result = isWeatherReponse(weatherResult);
+      //   if (result) {
+      //     console.log(weatherResult);
+      //   } else {
+      //     console.log("Respuesta mal formada");
+      //   }
+
+      // Zod
+      const result = Weather.safeParse(weatherResult);
+      if (result.success) {
+        console.log(data);
       } else {
         console.log("Respuesta mal formada");
       }
