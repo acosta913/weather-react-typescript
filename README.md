@@ -1,69 +1,117 @@
-# React + TypeScript + Vite
+# Weather Finder
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+[Español](./README.es.md)
 
-Currently, two official plugins are available:
+A small single-page application that looks up the current weather for any city, built with React 19, TypeScript and Vite. The user picks a country, types a city, and the app talks to the OpenWeatherMap API to return the current temperature plus the daily minimum and maximum.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+I built this project to practice strongly-typed React: custom hooks, controlled forms, runtime validation of third-party data, and a clean separation between UI components and data-fetching logic.
 
-## Expanding the ESLint configuration
+## What it does
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1. The user selects a country from a dropdown and writes a city name.
+2. On submit, the app calls OpenWeatherMap's geocoding endpoint to translate the `(city, country)` pair into geographic coordinates.
+3. With those coordinates it calls the weather endpoint and renders the result.
+4. The API response is validated at runtime with a Zod schema before it ever reaches the UI, so a malformed payload never breaks the render.
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+The interface handles four visible states: idle, loading (spinner), data ready, and "city not found".
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+## Tech stack
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+- **React 19** with the new JSX runtime
+- **TypeScript** in strict mode
+- **Vite 7** with the SWC plugin for fast HMR
+- **Axios** for HTTP calls
+- **Zod** for runtime schema validation of the API response
+- **CSS Modules** for scoped styling, one file per component
+- **ESLint** (flat config) with the React Hooks and React Refresh plugins
+
+## Getting started
+
+### Prerequisites
+
+- Node.js 18 or newer
+- An OpenWeatherMap API key (free tier works): https://openweathermap.org/api
+
+### Installation
+
+```bash
+git clone <repository-url>
+cd weather-react-typescript-main
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Environment variables
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Create a `.env.local` file at the project root:
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```env
+VITE_API_KEY=your_openweathermap_api_key
+VITE_API_URL_WEATHER=https://api.openweathermap.org/
 ```
+
+The trailing slash on `VITE_API_URL_WEATHER` is required because the hook concatenates the endpoint paths directly.
+
+### Run
+
+```bash
+npm run dev
+```
+
+The app will be available at `http://localhost:5173`.
+
+## Available scripts
+
+| Script            | What it does                                                  |
+| ----------------- | ------------------------------------------------------------- |
+| `npm run dev`     | Start the Vite dev server with hot reload                     |
+| `npm run build`   | Type-check the project (`tsc -b`) and produce a static bundle |
+| `npm run preview` | Serve the production build locally                            |
+| `npm run lint`    | Run ESLint over the codebase                                  |
+
+## Project structure
+
+```
+src/
+├── components/
+│   ├── Alert/          Inline error / validation message
+│   ├── Form/           Country + city form, controlled inputs
+│   ├── Spinner/        Loading indicator
+│   └── WeatherDetail/  Renders the parsed weather data
+├── data/
+│   └── countries.ts    Static ISO 3166-1 country list used in the <select>
+├── hooks/
+│   └── useWeather.ts   Owns all data state and the fetch logic
+├── types/
+│   └── index.ts        Shared TypeScript types
+├── utils/
+│   └── index.ts        Kelvin → Celsius conversion
+├── App.tsx             Composes the components based on hook state
+└── main.tsx            App entry point
+```
+
+## Implementation notes
+
+**Custom hook for data.** All of the asynchronous logic, loading flags and validation live inside `useWeather`. The components stay declarative: they receive the action and the derived flags, and decide what to render. This makes the UI easy to read and the hook easy to test or swap.
+
+**Runtime validation.** TypeScript types are erased at runtime, so they cannot protect the app from an unexpected response. The hook defines a Zod schema for the weather payload and uses `safeParse` before committing anything to state. The file also keeps two commented-out alternatives (a hand-written type guard and a Valibot schema) as a record of the trade-offs I considered.
+
+**Two-step API call.** The geocoding endpoint is queried first; if it returns an empty array the `notFound` flag is raised and the second call is skipped, so the user gets immediate feedback for misspelled cities without wasting a request.
+
+**Temperature handling.** OpenWeatherMap returns Kelvin. A single `formatTemperature` helper converts to integer Celsius, and every temperature in the UI is rendered through it.
+
+## Possible next steps
+
+- Persist the last successful search in `localStorage`.
+- Add a unit toggle (Celsius / Fahrenheit).
+- Show the weather icon and a short description from the API response.
+- Add Vitest + React Testing Library coverage for the hook and the form.
+
+## Author
+
+**Bryan Acosta**
+
+If you are reviewing this project as part of a hiring process and want to discuss the decisions behind it, I am happy to walk through the code.
+
+## License
+
+Released for portfolio and learning purposes. Feel free to fork it and adapt it.
